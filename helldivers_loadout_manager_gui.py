@@ -13,7 +13,6 @@ from database_mapper import construct_gold_db
 from loadout_creator import LoadoutCreator
 import logging
 
-
 # noinspection PyTypeChecker
 class LoadoutGUI:
     root: tk.Tk
@@ -147,6 +146,18 @@ class LoadoutGUI:
         )
         self.delete_btn.pack(fill="x", pady=5)
 
+        self.settings_btn = tk.Button(
+            self.left_frame,
+            text="⚙ SETTINGS",
+            bg="#333333",
+            fg="white",
+            font=("Courier", 8),
+            command=self.open_settings,
+            bd=0,
+            pady=5
+        )
+        self.settings_btn.pack(fill="x", pady=5)
+
         # 2. MIDDLE COLUMN: Manifest Preview
         self.mid_frame = tk.LabelFrame(self.main_container, text=" MANIFEST PREVIEW ",
                                        bg="#1a1a1a", fg="#ffe81f", font=("Courier", 10, "bold"))
@@ -269,6 +280,82 @@ class LoadoutGUI:
                 messagebox.showinfo("Loadout Deleted", f"Loadout '{loadout_name}' deleted.", parent=self.root)
             except OSError as error:
                 messagebox.showerror("Delete Error", f"Could not delete loadout: {error}", parent=self.root)
+
+    def open_settings(self):
+
+        def save_settings():
+            values = {}
+            try:
+                for key, _, _ in settings_fields:
+                    delay = float(delay_vars[key].get())
+                    if delay < 0:
+                        raise ValueError
+                    values[key] = delay
+            except ValueError:
+                messagebox.showerror("Invalid Delay", "Enter non-negative numbers for all delay fields.",
+                                        parent=settings_window)
+                return
+
+            try:
+                self.manager.config.save_config({"controls": values})
+                settings_window.destroy()
+                messagebox.showinfo("Settings Saved", "Settings saved successfully.", parent=self.root)
+            except OSError as error:
+                messagebox.showerror("Settings Error", f"Could not save settings: {error}",
+                                        parent=settings_window)
+        
+        def restore_defaults():
+            if not messagebox.askyesno(
+                    "Restore Defaults",
+                    "Restore all settings to their default values? This will immediately overwrite your current settings and cannot be undone.",
+                    parent=settings_window
+            ):
+                return
+
+            values = {key: default for key, _, default in settings_fields}
+            try:
+                self.manager.config.save_config({"controls": values})
+                settings_window.destroy()
+                messagebox.showinfo("Default Settings Restored", "Default settings restored successfully.", parent=self.root)
+            except OSError as error:
+                messagebox.showerror("Settings Error", f"Could not save settings: {error}",
+                                     parent=settings_window)
+
+        settings_window = tk.Toplevel(self.root)
+        settings_window.title("SETTINGS")
+        settings_window.geometry("420x260")
+        settings_window.configure(bg="#1a1a1a")
+        settings_window.transient(self.root)
+        settings_window.grab_set()
+
+        settings_fields = (
+            ("CAT SWITCH DELAY", "Category switch delay (seconds)", 0.4),
+            ("OCR READ DELAY", "OCR read delay (seconds)", 0.3),
+            ("NAV DELAY", "Navigation delay (seconds)", 0.1),
+        )
+        delay_vars = {}
+
+        tk.Label(settings_window, text="SETTINGS", bg="#1a1a1a", fg="#ffe81f",
+                 font=("Courier", 12, "bold")).pack(pady=(15, 10))
+
+        fields_frame = tk.Frame(settings_window, bg="#1a1a1a")
+        fields_frame.pack(fill="x", padx=25)
+        for key, description, default in settings_fields:
+            row = tk.Frame(fields_frame, bg="#1a1a1a")
+            row.pack(fill="x", pady=4)
+            tk.Label(row, text=description, width=30, anchor="w", bg="#1a1a1a", fg="white",
+                     font=("Courier", 8)).pack(side="left")
+            value = self.manager.config.get_control(key, default)   # Read in delay values in settings.json
+            delay_vars[key] = tk.StringVar(value=str(value))
+            tk.Entry(row, textvariable=delay_vars[key], width=10, bg="#2a2a2a", fg="white",
+                     insertbackground="white", justify="right").pack(side="right")
+
+        button_frame = tk.Frame(settings_window, bg="#1a1a1a")
+        button_frame.pack(fill="x", padx=20, pady=18)
+        tk.Button(button_frame, text="RESTORE DEFAULTS", width=16, bg="#e67e22", fg="white",
+                  command=restore_defaults).pack(side="left", padx=5)
+        tk.Button(button_frame, text="SAVE", width=12, bg="#2ecc71", fg="white",
+              command=save_settings).pack(side="right", padx=5)
 
     # --- Mapping Panel Methods ---
     def create_mapping_buttons(self):
